@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jun  7 11:15:35 2018
+
+@author: johnvdk
+"""
+
+import matplotlib.pyplot as plt
+from scipy.integrate import simps
+import numpy as np
+
+# PV = n*R*T
+R = 8.314  # J/mol/K
+P1 = 100  # kPa
+V1 = 816  # L
+T1 = 293  # k
+T3max = 1273  # k
+y = 1.4
+dV = 0.001  # Change in volume per step
+dT = 1  # Change in Temperature per step
+n = 1000 * P1 * V1 / (R * T1)  # number of moles
+PRatio = 20
+
+
+P2 = 100  # kPa
+
+# Stage 1 - 2
+V1lst = [V1]
+P1lst = [P1]
+x = 1
+V2 = V1
+
+while (P2 < (P1 * PRatio)):
+    V2 = V2 - dV
+    P2 = P1 / ((V2 / V1) ** y)
+    P1lst.append(P2)
+    V1lst.append(V2)
+    x = x + 1
+
+P2 = P1 * PRatio
+V2 = V1 * (P1 / P2) ** (1 / y)
+T2 = T1 * (V1 / V2) ** (y - 1)
+
+# entropy
+e1 = 0
+T1lst = [T1]
+e1lst = [e1]
+Tup = T1
+
+while (Tup < T2):
+    Tup = Tup + dT
+    T1lst.append(Tup)
+    e1lst.append(e1)
+
+# Stage 2 - 3
+V2lst = [V2]
+P2lst = [P2]
+T2lst = [T2]
+e2lst = [e1]
+e2 = e1
+V3 = V2
+T3 = T2
+Vprev = V3
+
+while (T3 < T3max):
+    V3 = V3 + dV
+    T3 = T2 * (V3 / V2)
+    e2 = e2 + (7/2)*n * R * (np.log(V3 / Vprev))
+    Vprev = V3
+    V2lst.append(V3)
+    P2lst.append(P2)
+    T2lst.append(T3)
+    e2lst.append(e2)
+
+T3 = T3max
+P3 = P2
+
+# Stage 3 - 4
+P4 = P3
+V4 = V3
+V3lst = [V4]
+P3lst = [P4]
+
+while (P4 > P1):
+    V4 = V4 + dV
+    P4 = P3 / ((V4 / V3) ** y)
+    V3lst.append(V4)
+    P3lst.append(P4)
+V4 = V3 * (P3 / P4) ** (1 / y)
+P4 = P3 / ((V4 / V3) ** y)
+T4 = T3 * ((V3 / V4) ** (y - 1))  # Not the formula he has written down
+# entropy
+e3 = e2
+T3lst = [T3]
+e3lst = [e3]
+Tdown = T3
+
+while (Tdown > T4):
+    Tdown = Tdown - dT
+    T3lst.append(Tdown)
+    e3lst.append(e3)
+
+# Stage 4 - 1
+e4 = e3
+V4lst = [V4]
+P4lst = [P4]
+T4lst = [T4]
+e4lst = [e4]
+Vprev = V4
+Tone = T4
+Vfour = V4
+
+while (V4 > V1):
+    V4 = V4 - dV
+    e4 = e4 + (7/2)* n * R * (np.log(V4 / Vprev))
+    Tone = T4 * (V4 / Vfour)
+    Vprev = V4
+    V4lst.append(V4)
+    P4lst.append(P4)
+    T4lst.append(Tone)
+    e4lst.append(e4)
+
+#plt.plot(V1lst[:], P1lst[:], 'r', label='Stage 1->2')
+#plt.plot(V2lst[:], P2lst[:], 'y', label='Stage 2->3')
+#plt.plot(V3lst[:], P3lst[:], 'g', label='Stage 3->4')
+#plt.plot(V4lst[:], P4lst[:], 'b', label='Stage 4->1')
+#plt.ylabel('Pressure [kPa]')
+#plt.xlabel('Volume [L]')
+#title = 'PV plot for an isentropic pressure ratio of ' + str(PRatio)
+#plt.title(title)
+#plt.legend(loc='upper right')
+#plt.show()
+
+# entropy plot
+plt.clf()
+plt.plot(e1lst[:], T1lst[:], 'r', label='Stage 1->2')
+plt.plot(e2lst[:], T2lst[:], 'y', label='Stage 2->3')
+plt.plot(e3lst[:], T3lst[:], 'g', label='Stage 3->4')
+plt.plot(e4lst[:], T4lst[:], 'b', label='Stage 4->1')
+plt.ylabel('Temperature [K]')
+plt.xlabel('Entropy [J/kg/K]')
+title = 'Temperature  Vs Entropy plot for an isentropic pressure ratio of ' + str(PRatio)
+plt.title(title)
+# plt.legend(loc='upper left')
+plt.show()
+print(T2)
+print(T4)
+
+## Efficiencies
+## Calculated
+#N = 1 - (1 / PRatio) ** (1 - 1 / y)
+## Numerical
+#area1 = simps(P1lst, dx=dV)
+#area2 = simps(P2lst, dx=dV)
+#area3 = simps(P3lst, dx=dV)
+#area4 = simps(P4lst, dx=dV)
+#area = area2 + area3 - area1 - area4
+#Qh = n / 1000 * 7 / 2 * 8.3 * (T3 - T2)
+#numE = area / Qh
